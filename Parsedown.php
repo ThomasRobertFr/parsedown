@@ -76,6 +76,7 @@ class Parsedown
         return $this->linesCV($lines);
     }
 
+ 
     private function linesCV($lines) {
 
         $content = false;
@@ -105,8 +106,8 @@ class Parsedown
                 }
             }
 
-            // if we are in metadata
-            else {
+            // if we are in metadata (or back to metadata)
+            if(!$content) {
                 // if anythink to process
                 if (!empty($line)) {
                     // test various possible metadata
@@ -152,7 +153,8 @@ class Parsedown
 
                     // if we start content
                     if ($content) {
-                        $contentBuffer[] = $line;
+                        if (substr($line, 0, 10) != '__________')
+                            $contentBuffer[] = $line;
                     }
                 }
             }
@@ -163,6 +165,7 @@ class Parsedown
 
         return $experiences;
     }
+
 
     #
     # Setters
