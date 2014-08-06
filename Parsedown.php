@@ -53,6 +53,117 @@ class Parsedown
         return $markup;
     }
 
+
+    function textCV($text)
+    {
+        # make sure no definitions are set
+        $this->Definitions = array();
+
+        # standardize line breaks
+        $text = str_replace("\r\n", "\n", $text);
+        $text = str_replace("\r", "\n", $text);
+
+        # replace tabs with spaces
+        $text = str_replace("\t", '    ', $text);
+
+        # remove surrounding line breaks
+        $text = trim($text, "\n");
+
+        # split text into lines
+        $lines = explode("\n", $text);
+
+        # iterate through lines to identify blocks
+        return $this->linesCV($lines);
+    }
+
+    private function linesCV($lines) {
+
+        $content = false;
+        $experiences = array();
+        $currentExperience = array();
+        $contentBuffer = array();
+
+        foreach ($lines as $line) {
+
+            // if we are currently looking at content
+            if ($content) {
+                // if end of an experience save it
+                if (substr($line, 0, 2) == '# ' || substr($line, 0, 10) == '__________') {
+                    $content = false;
+                    $currentExperience['text'] = trim($this->lines($contentBuffer), "\n");
+                    $experiences[] = $currentExperience;
+                    $currentExperience = array();
+                    $contentBuffer = array();
+
+                    // if we are at a dash line, skip it...
+                    if (substr($line, 0, 10) == '__________')
+                        continue;
+                }
+                // if we continue with content
+                else {
+                    $contentBuffer[] = $line;
+                }
+            }
+
+            // if we are in metadata
+            else {
+                // if anythink to process
+                if (!empty($line)) {
+                    // test various possible metadata
+                    $marker = $line[0];
+                    $text = trim(substr($line, 1));
+                    switch ($marker) {
+
+                        // # title, ## subtitle, ### date
+                        case '#':
+                            if (preg_match('/^(#+) (.+)$/u', $line, $matches)) {
+                                $text = trim($this->lines(array($matches[2])), "\n");
+                                if ($matches[1] == '#')
+                                    $currentExperience['title'] = $text;
+                                elseif ($matches[1] == '##')
+                                    $currentExperience['subtitle'] = $text;
+                                else
+                                    $currentExperience['date'] = $text;
+                            }
+                            else 
+                                $content = true;
+                            break;
+
+                        // link
+                        case '@':
+                            if (preg_match('/^(.+) - (.+)$/u', $text, $matches)) {
+                                $currentExperience['url'] = $matches[1];
+                                $currentExperience['urltitle'] = $matches[2];
+                            }
+                            else
+                                $currentExperience['url'] = $text;
+                            break;
+
+                        // tags, type, img
+                        case '+': $currentExperience['tags'] = $text; break;
+                        case '>': $currentExperience['type'] = $text; break;
+                        case '%': $currentExperience['img'] = $text; break;
+
+                        // no metadata, start content
+                        default:
+                            $content = true;
+                            break;
+                    }
+
+                    // if we start content
+                    if ($content) {
+                        $contentBuffer[] = $line;
+                    }
+                }
+            }
+        }
+
+        $currentExperience['text'] = trim($this->lines($contentBuffer), "\n");
+        $experiences[] = $currentExperience;
+
+        return $experiences;
+    }
+
     #
     # Setters
     #
@@ -942,12 +1053,14 @@ class Parsedown
 
     protected $SpanTypes = array(
         '!' => array('Link'), # ?
+        '?' => array('Abbr'),
         '&' => array('Ampersand'),
         '*' => array('Emphasis'),
         '/' => array('Url'),
         '<' => array('UrlTag', 'EmailTag', 'Tag', 'LessThan'),
         '[' => array('Link'),
         '_' => array('Emphasis'),
+        '$' => array('Span'),
         '`' => array('InlineCode'),
         '~' => array('Strikethrough'),
         '\\' => array('EscapeSequence'),
@@ -955,7 +1068,7 @@ class Parsedown
 
     # ~
 
-    protected $spanMarkerList = '*_!&[</`~\\';
+    protected $spanMarkerList = '*_!?&[</$`~\\';
 
     #
     # ~
@@ -1171,6 +1284,59 @@ class Parsedown
             );
         }
     }
+
+    protected function identifySpan($Excerpt)
+    {
+        $marker = $Excerpt['text'][0];
+
+        if (preg_match('/^(\\'.$marker.'+)[ ]*(.+?)[ ]*(?<!\\'.$marker.')\1(?!\\'.$marker.')/', $Excerpt['text'], $matches))
+        {
+            $text = $matches[2];
+            $text = htmlspecialchars($text, ENT_NOQUOTES, 'UTF-8');
+
+            return array(
+                'extent' => strlen($matches[0]),
+                'element' => array(
+                    'name' => 'span',
+                    'text' => $text,
+                ),
+            );
+        }
+    }
+
+    protected function identifyAbbr($Excerpt)
+    {
+        $extent = 1;
+
+        if (strpos($Excerpt['text'], ']') and preg_match('/\[((?:[^][]|(?R))*)\]/', $Excerpt['text'], $matches))
+        {
+            $text = $matches[1];
+            $extent += strlen($matches[0]);
+
+            $substring = substr($Excerpt['text'], $extent);
+
+            if (preg_match('/^\([ ]*(.*?)[ ]*\)/', $substring, $matches))
+            {
+                $title = $matches[1];
+                $extent += strlen($matches[0]);
+
+                return array(
+                    'extent' => $extent,
+                    'element' => array(
+                        'name' => 'abbr',
+                        'text' => $text,
+                        'attributes' => array(
+                            'class' => 'showtooltip',
+                            'title' => $title,
+                        )
+                    )
+                );
+            }
+        }
+
+        return;
+    }
+
 
     protected function identifyLink($Excerpt)
     {
