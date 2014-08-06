@@ -5,6 +5,40 @@ Better [Markdown](http://en.wikipedia.org/wiki/Markdown) parser for PHP.
 * [Demo](http://parsedown.org/demo)
 * [Test Suite](http://parsedown.org/tests/)
 
+### My modifications
+
+I wanted to use this lib to parse pseudo-Markdown files describing a CV. The input file looks like that:
+
+``` Markdown
+# Title in Markdown
+## Subtitle in Markdown
+### Date in Markdown
+% Image URL
+@ URL - Optional title
+> Type of the block
+
+Content in Markdown
+
+_______________________________________________________________________________
+
+# Title in Markdown
+## Subtitle in Markdown
+### Date in Markdown
+% Image URL
+@ URL - Optional title
+> Type of the block
+
+Content in Markdown
+
+_______________________________________________________________________________
+
+...
+```
+
+To do that, I added `textCV` function that takes a string and return an array of objects describing each of these sections.
+
+In the Markdown syntax itself, I wanted the posibility to create HTML spans like `<span>span content</span>`, with the syntax `$span content$`, and also abbreviations like `<abbr class="showtooltip" title="description">ABBR</abbr>` with the syntax `?[ABBR](description)` so I also added those possibilities to the lib.
+
 ### Features
 
 * [Fast](http://parsedown.org/speed)
