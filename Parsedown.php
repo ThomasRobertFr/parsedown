@@ -117,7 +117,7 @@ class Parsedown
                         // # title, ## subtitle, ### date
                         case '#':
                             if (preg_match('/^(#+) (.+)$/u', $line, $matches)) {
-                                $text = trim($this->lines(array($matches[2])), "\n");
+                                $text = trim($this->line($matches[2]), "\n");
                                 if ($matches[1] == '#')
                                     $currentExperience['title'] = $text;
                                 elseif ($matches[1] == '##')
